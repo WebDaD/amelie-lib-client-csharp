@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Net.Http;
+using Newtonsoft.Json;
 
 namespace amelie.lib.client.csharp
 {
@@ -10,6 +12,7 @@ namespace amelie.lib.client.csharp
         private string source;
         private string level;
         private string pattern;
+        private Regex pattern_reg;
 
         /// <summary>
         /// Create the Client with Default Values
@@ -24,6 +27,7 @@ namespace amelie.lib.client.csharp
             this.source = source;
             this.level = level;
             this.pattern = regex;
+            this.pattern_reg = new Regex(regex);
         }
         /// <summary>
         /// 
@@ -32,7 +36,15 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public Entry WriteLog(string message)
         {
-            // TODO: if message matches regex, split it. else just write
+            if (this.pattern_reg.IsMatch(message))
+            {
+                // TODO: parse string into fields based on regex
+            }
+            else
+            {
+                return WriteLog(message, this.level, this.source, "");
+            }
+
         }
         /// <summary>
         /// 
@@ -65,8 +77,10 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public Entry WriteLog(string message, string level, string source, string message_long)
         {
-            // TODO: write to server, return parse to object
-            // POST /log (body: source, level, message, message_long, timestamp(optional))
+            Entry write = new Entry(source, level, message, message_long);
+            string output = writeJSON(write.JSON, makeURL(serverURL, "/log/"));
+            Entry deserializedEntry = JsonConvert.DeserializeObject<Entry>(output);
+            return deserializedEntry;
         }
         /// <summary>
         /// 
@@ -75,7 +89,7 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<Entry> ReadAll(string serverURL = "")
         {
-            // * GET /log  - get all log entries
+            return getEntriesFromUrl(makeURL(serverURL, "/log/"));
         }
         /// <summary>
         /// 
@@ -84,7 +98,9 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<string> ReadSources(string serverURL = "")
         {
-            // * GET /log/sources  - get all sources
+            string output = getJSON(makeURL(serverURL, "/log/sources/"));
+            string[] deserializedEntry = JsonConvert.DeserializeObject<string[]>(output);
+            return new List<string>(deserializedEntry);
         }
         /// <summary>
         /// 
@@ -93,7 +109,9 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<string> ReadLevels(string serverURL = "")
         {
-            // * GET /log/levels  - get all sources
+            string output = getJSON(makeURL(serverURL, "/log/levels/"));
+            string[] deserializedEntry = JsonConvert.DeserializeObject<string[]>(output);
+            return new List<string>(deserializedEntry);
         }
         /// <summary>
         /// 
@@ -102,7 +120,9 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<string> ReadTags(string serverURL = "")
         {
-            // * GET /log/tags  - get all sources
+            string output = getJSON(makeURL(serverURL, "/log/tags/"));
+            string[] deserializedEntry = JsonConvert.DeserializeObject<string[]>(output);
+            return new List<string>(deserializedEntry);
         }
         /// <summary>
         /// 
@@ -112,7 +132,9 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public Entry ReadEntry(string id, string serverURL = "")
         {
-            // * GET /log/:id  - get object with id
+            string output = getJSON(makeURL(serverURL, "/log/" + id));
+            Entry deserializedEntry = JsonConvert.DeserializeObject<Entry>(output);
+            return deserializedEntry;
         }
         /// <summary>
         /// 
@@ -122,7 +144,7 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<Entry> ReadAllBySource(string source, string serverURL = "")
         {
-            // * GET /log/source/:source  - get all entries to source
+            return getEntriesFromUrl(makeURL(serverURL, "/log/source/" + source));
         }
         /// <summary>
         /// 
@@ -132,7 +154,7 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<Entry> ReadAllByLevel(string level, string serverURL = "")
         {
-            // * GET /log/level/:level - get all entries to level
+            return getEntriesFromUrl(makeURL(serverURL, "/log/level/" + level));
         }
         /// <summary>
         /// 
@@ -142,7 +164,7 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<Entry> ReadAllByTag(string tag, string serverURL = "")
         {
-            // * GET /log/tag/:tag - get all entries to tag
+            return getEntriesFromUrl(makeURL(serverURL, "/log/tag/" + tag));
         }
         /// <summary>
         /// 
@@ -152,7 +174,7 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<Entry> Query(string query, string serverURL = "")
         {
-            // * GET /search?:query (query: source, level, from, to, tag, string, ...)
+            return getEntriesFromUrl(makeURL(serverURL, "/search?" + query));
         }
         /// <summary>
         /// 
@@ -163,7 +185,15 @@ namespace amelie.lib.client.csharp
         /// <returns></returns>
         public List<Entry> ReadAllByTimeStamp(DateTime From, DateTime? To = null, string serverURL = "")
         {
-            // * GET /log/timestamp/:from/[:to]  - get from, if no to then now
+            DateTime until;
+            if(To == null)
+            {
+                until = DateTime.Now;
+            } else
+            {
+                until = (DateTime)To;
+            }
+            return getEntriesFromUrl(makeURL(serverURL, "/log/timestamp/" + From.ToString() + "/" + until.ToString()));
         }
         /// <summary>
         /// 
@@ -171,13 +201,45 @@ namespace amelie.lib.client.csharp
         /// <param name="number"></param>
         /// <param name="serverURL"></param>
         /// <returns></returns>
-        public Entry ReadNewst(int number = 1, string serverURL = "")
+        public List<Entry> ReadNewest(int number = 1, string serverURL = "")
         {
-            // * GET /log/last  - get newest Entry
-            // * GET /log/last/:number  - get newest entries, where number is the number of entries to get
+            return getEntriesFromUrl(makeURL(serverURL, "/log/last/" + number.ToString()));
         }
 
+        private List<Entry> getEntriesFromUrl(string url)
+        {
+            string output = getJSON(url);
+            Entry[] deserializedEntry = JsonConvert.DeserializeObject<Entry[]>(output);
+            return new List<Entry>(deserializedEntry);
+        }
 
-
+        private string makeURL(string alternativeURL, string addon)
+        {
+            Uri baseUri = new Uri(returnBaseURL(alternativeURL));
+            return new Uri(baseUri, addon).ToString();
+        }
+        private string returnBaseURL(string alternativeURL)
+        {
+            return String.IsNullOrEmpty(alternativeURL) ? this.serverURL : alternativeURL;
+        }
+        /// <summary>
+        /// Writes JSON to URL and returns the JSON Output as String
+        /// </summary>
+        /// <param name="json"></param>
+        /// <param name="url"></param>
+        /// <returns>json as string</returns>
+        private string writeJSON(string json, string url)
+        {
+            //TODO: write json as string to url
+        }
+        /// <summary>
+        /// Reads JSON from URL
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns>json as string</returns>
+        private string getJSON(string url)
+        {
+            //TODO: get Json as String from url
+        }
     }
 }

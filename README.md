@@ -3,6 +3,12 @@
 Part of the [Amelie-System](https://github.com/WebDaD/amelie)
 
 ## TODO
-* Fill with Live
+* Coding
+	* Patter Matching
+	* WriteJSON to http
+	* ReadJson From http
 * Document
-* publish to nuget
+	* inline
+	* class diagramms
+	* dependencies
+* publish to nuget https://docs.microsoft.com/en-us/nuget/guides/create-net-standard-packages-vs2017
