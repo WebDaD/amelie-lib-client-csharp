@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Net;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Net.Http;
 using Newtonsoft.Json;
+using System.Net.Http;
 
 namespace amelie.lib.client.csharp
 {
@@ -13,7 +14,7 @@ namespace amelie.lib.client.csharp
         private string level;
         private string pattern;
         private Regex pattern_reg;
-
+        private HttpClient myClient;
         /// <summary>
         /// Create the Client with Default Values
         /// </summary>
@@ -28,6 +29,7 @@ namespace amelie.lib.client.csharp
             this.level = level;
             this.pattern = regex;
             this.pattern_reg = new Regex(regex);
+            this.myClient = new HttpClient();
         }
         /// <summary>
         /// 
@@ -186,10 +188,11 @@ namespace amelie.lib.client.csharp
         public List<Entry> ReadAllByTimeStamp(DateTime From, DateTime? To = null, string serverURL = "")
         {
             DateTime until;
-            if(To == null)
+            if (To == null)
             {
                 until = DateTime.Now;
-            } else
+            }
+            else
             {
                 until = (DateTime)To;
             }
@@ -230,16 +233,26 @@ namespace amelie.lib.client.csharp
         /// <returns>json as string</returns>
         private string writeJSON(string json, string url)
         {
-            //TODO: write json as string to url
+            //TODO: write json as string to url https://stackoverflow.com/questions/15176538/net-httpclient-how-to-post-string-value
         }
         /// <summary>
         /// Reads JSON from URL
         /// </summary>
         /// <param name="url"></param>
-        /// <returns>json as string</returns>
+        /// <returns>json as string or null</returns>
         private string getJSON(string url)
         {
-            //TODO: get Json as String from url
+            var response = myClient.GetAsync(url).Result;
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = response.Content;
+                string responseString = responseContent.ReadAsStringAsync().Result;
+                return responseString;
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }
